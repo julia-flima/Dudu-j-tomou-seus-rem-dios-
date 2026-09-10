@@ -1,0 +1,25 @@
+{
+  "name": "Dudu já tomou seus remédios?",
+  "short_name": "Remédios do Dudu",
+  "description": "Checklist diária de remédios com a Bubu e os shibas",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#FFF3E2",
+  "theme_color": "#F2A25C",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
