@@ -1,0 +1,103 @@
+name: APK Android
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']   # uma tag v* também publica o APK no release
+    paths: &arquivos-do-app
+      - 'index.html'
+      - 'src-tauri/**'
+      - 'scripts/**'
+      - 'package*.json'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths: *arquivos-do-app
+  workflow_dispatch:
+
+permissions:
+  contents: write  # para anexar o APK no release quando for uma tag v*
+
+env:
+  NDK_VERSION: 27.2.12479018
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Instalar o Android NDK
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      - name: Gerar o projeto Android
+        run: |
+          npx tauri android init --ci
+          # aplica o ícone da Bubu também no projeto Android recém-gerado
+          npx tauri icon icon-512.png
+
+      - name: Compilar o APK
+        run: npx tauri android build --apk --target aarch64 armv7 --ci
+
+      - name: Assinar o APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          APK_IN=$(find src-tauri/gen/android/app/build/outputs/apk -name '*-release-unsigned.apk' | head -1)
+          echo "APK gerado: $APK_IN"
+
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/chave.jks"
+          else
+            echo "::warning::Sem os secrets ANDROID_KEYSTORE_*: o APK foi assinado com uma chave temporária. Ele instala normalmente, mas NÃO vai dar pra atualizar por cima depois (teria que desinstalar e perder os dados). Veja o README para criar a chave fixa."
+            KEYSTORE_PASSWORD=temporaria
+            KEY_ALIAS=temporaria
+            keytool -genkeypair -keystore "$RUNNER_TEMP/chave.jks" -storetype PKCS12 \
+              -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KEYSTORE_PASSWORD" -dname "CN=Remedios do Dudu"
+          fi
+
+          "$BUILD_TOOLS/zipalign" -p -f 4 "$APK_IN" "$RUNNER_TEMP/alinhado.apk"
+          export KEYSTORE_PASSWORD
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$RUNNER_TEMP/chave.jks" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out remedios-do-dudu.apk "$RUNNER_TEMP/alinhado.apk"
+          "$BUILD_TOOLS/apksigner" verify remedios-do-dudu.apk
+          rm -f "$RUNNER_TEMP/chave.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: remedios-do-dudu-apk
+          path: remedios-do-dudu.apk
+
+      - name: Anexar ao release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: remedios-do-dudu.apk
