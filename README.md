@@ -9,7 +9,11 @@ Um app carinhoso de checklist diária de remédios, com tema de shiba inu e ilus
 ## ✨ O que ele faz
 
 - ✅ **Checklist diária** com os remédios: Mesacol MMX, Duspatalin, Revoc e Doss
-- ➕ Campo para **adicionar outros remédios** (e remover os extras)
+- ➕ Campo para **adicionar outros remédios**
+- ✏️ **Editar a lista permanente**: no modo *Editar lista* dá pra tirar qualquer remédio (com confirmação). Remédios tirados vão para **Remédios guardados**, com o histórico preservado, e podem voltar pra lista quando quiser
+- ⏰ **Horário de cada remédio tomado** aparece abaixo do nome (com 🌙 quando foi marcado de madrugada)
+- ↕️ **Reordenar os remédios**: segure um item e arraste (ou use o ⠿ no modo de edição; no teclado, Alt+↑/↓)
+- 💾 **Backup**: salve um arquivo `.json` com todos os dados e restaure depois — útil se você limpa os dados do navegador
 - 🎭 **A Bubu e o shiba reagem ao progresso**:
   - Nenhum tomado → Bubu triste e shiba desanimado esperando
   - Parte tomada → Bubu neutra ou feliz, shiba atento ou rindo
@@ -38,7 +42,7 @@ No iPhone: abra no **Safari** → botão de compartilhar → **"Adicionar à Tel
 
 ## 🔧 Como personalizar
 
-- **Remédios padrão**: edite a lista `MEDS_PADRAO` no início do `<script>` em `index.html`
+- **Remédios padrão** (usados só na primeira vez que o app abre): edite a lista `MEDS_PADRAO` no início do `<script>` em `index.html`. Depois disso, a lista é editada pelo próprio app
 - **Mensagens**: procure os textos em `humor.textContent` e no balão `.fala`
 - Depois de editar, é só reenviar o arquivo pro repositório — o app instalado se atualiza sozinho na próxima abertura com internet (o histórico não se perde!)
 
