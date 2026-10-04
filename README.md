@@ -38,7 +38,7 @@ Além da PWA, o app também existe como **aplicativo Android de verdade**, feito
 ### Baixar o APK
 
 - **Última versão de teste**: aba **Actions** → workflow **APK Android** → abra a execução mais recente → baixe o artefato `remedios-do-dudu-apk` (vem em `.zip`, o APK está dentro).
-- **Versões oficiais**: crie uma tag `v1.0.0`, `v1.1.0`… e o APK aparece anexado na página de **Releases**.
+- **Versões oficiais**: página de **Releases**. Para publicar uma nova: aba **Actions** → **APK Android** → **Run workflow**, preencha a versão (ex.: `v1.1.0`) e rode — ou crie uma tag `v*` no git. Lembre de subir o `version` em `src-tauri/tauri.conf.json` antes.
 
 No celular, abra o `.apk` e permita "instalar apps desta fonte" quando o Android pedir.
 

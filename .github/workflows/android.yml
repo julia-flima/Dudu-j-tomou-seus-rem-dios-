@@ -13,6 +13,11 @@ on:
   pull_request:
     paths: *arquivos-do-app
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Publicar como release com esta versão (ex.: v1.0.0). Vazio = só gera o APK.'
+        required: false
+        default: ''
 
 permissions:
   contents: write  # para anexar o APK no release quando for uma tag v*
@@ -97,7 +102,11 @@ jobs:
           path: remedios-do-dudu.apk
 
       - name: Anexar ao release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
         uses: softprops/action-gh-release@v2
         with:
+          # numa tag v*, usa a própria tag; no disparo manual, cria a tag informada neste commit
+          tag_name: ${{ inputs.release || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
           files: remedios-do-dudu.apk
