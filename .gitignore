@@ -1,0 +1,5 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+src-tauri/gen/android/   # gerado pelo 'tauri android init' (o CI gera de novo a cada build)

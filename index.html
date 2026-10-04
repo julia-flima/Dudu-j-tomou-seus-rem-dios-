@@ -533,12 +533,24 @@ async function coletarDados(){
 async function exportarBackup(){
   const dados=await coletarDados();
   const conteudo=JSON.stringify({app:'dudu-remedios', versao:1, exportadoEm:new Date().toISOString(), dados}, null, 1);
-  const blob=new Blob([conteudo],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`remedios-do-dudu-${dataDe(new Date())}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  const nomeArquivo=`remedios-do-dudu-${dataDe(new Date())}.json`;
+  const tauri=window.__TAURI__;
+  if(tauri && tauri.dialog && tauri.fs){
+    // no aplicativo (Tauri), o WebView não faz downloads: pergunta onde salvar e grava o arquivo
+    let destino=null;
+    try{ destino=await tauri.dialog.save({defaultPath:nomeArquivo, filters:[{name:'Backup', extensions:['json']}]}); }
+    catch(e){ destino=null; }  // no Android, cancelar o diálogo cai aqui
+    if(!destino) return;
+    try{ await tauri.fs.writeTextFile(destino, conteudo); }
+    catch(e){ await avisar('Não deu pra salvar 🥺', String(e)); return; }
+  } else {
+    const blob=new Blob([conteudo],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=nomeArquivo;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
   await store.set('backup-ultimo', new Date().toISOString());
   renderInfoBackup();
 }
