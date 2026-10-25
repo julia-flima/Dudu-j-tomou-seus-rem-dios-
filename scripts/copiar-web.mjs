@@ -1,7 +1,8 @@
 // Copia os arquivos do web app para dist/, que é o que o Tauri empacota no aplicativo.
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 
-const ARQUIVOS = [
+export const ARQUIVOS = [
   "index.html",
   "styles.css",
   "main.js",
@@ -12,7 +13,17 @@ const ARQUIVOS = [
   "icon-512.png",
 ];
 
-rmSync("dist", { recursive: true, force: true });
-mkdirSync("dist");
-for (const arq of ARQUIVOS) cpSync(arq, `dist/${arq}`, { recursive: true });
+const raiz = resolve(import.meta.dirname, "..");
+const dist = join(raiz, "dist");
+
+rmSync(dist, { recursive: true, force: true });
+mkdirSync(dist, { recursive: true });
+
+for (const arq of ARQUIVOS) {
+  const origem = join(raiz, arq);
+  if (!existsSync(origem)) {
+    throw new Error(`Arquivo obrigatório não encontrado: ${arq}`);
+  }
+  cpSync(origem, join(dist, arq), { recursive: true });
+}
 console.log(`dist/ pronto (${ARQUIVOS.length} itens)`);

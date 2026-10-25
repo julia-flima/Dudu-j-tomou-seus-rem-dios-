@@ -1235,6 +1235,7 @@ dialog .botoes button[value="sim"] {
 input:focus-visible,
 select:focus-visible,
 button:focus-visible,
+label[tabindex]:focus-visible,
 .med:focus-visible,
 .dia:focus-visible {
   outline: 3px dashed var(--shiba-escuro);

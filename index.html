@@ -4,12 +4,13 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#F2A25C" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Remédios do Dudu" />
     <title>Dudu já tomou seus remédios?</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,6 +32,7 @@
           <section
             class="aba ativa"
             id="abaRemedios"
+            role="tabpanel"
             aria-label="Remédios do dia"
           >
             <div class="aviso-passado" id="avisoPassado" hidden>
@@ -56,7 +58,7 @@
                 placeholder="Adicionar outro remédio..."
                 maxlength="40"
               />
-              <button id="btnAdd">+ Add</button>
+              <button type="button" id="btnAdd">+ Add</button>
             </div>
 
             <div class="cartao" id="arquivados" hidden>
@@ -78,10 +80,14 @@
                 depois!
               </p>
               <div class="acoes">
-                <button class="botao-sec" id="btnExportar">
+                <button type="button" class="botao-sec" id="btnExportar">
                   ⬇️ Salvar backup
                 </button>
-                <label class="botao-sec" tabindex="0" id="lblImportar"
+                <label
+                  class="botao-sec"
+                  role="button"
+                  tabindex="0"
+                  id="lblImportar"
                   >⬆️ Restaurar<input
                     type="file"
                     id="arqBackup"
@@ -96,6 +102,7 @@
           <section
             class="aba"
             id="abaAlarmes"
+            role="tabpanel"
             aria-label="Alarmes e lembretes"
             inert
           >
@@ -188,19 +195,28 @@
       </button>
     </div>
 
-    <nav class="nav-abas" id="navAbas" aria-label="Navegação principal">
+    <nav
+      class="nav-abas"
+      id="navAbas"
+      role="tablist"
+      aria-label="Navegação principal"
+    >
       <button
         type="button"
+        role="tab"
         class="aba-btn ativo"
         data-aba="remedios"
+        aria-controls="abaRemedios"
         aria-selected="true"
       >
         💊 Remédios
       </button>
       <button
         type="button"
+        role="tab"
         class="aba-btn"
         data-aba="alarmes"
+        aria-controls="abaAlarmes"
         aria-selected="false"
       >
         ⏰ Alarmes
@@ -213,6 +229,7 @@
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="alarmeTitulo"
+      aria-describedby="alarmeTexto"
       hidden
     >
       <div class="alarme-caixa">

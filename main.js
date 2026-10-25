@@ -69,10 +69,79 @@ const store = {
 function lerJSON(raw, padrao) {
   if (!raw) return padrao;
   try {
-    return JSON.parse(raw);
+    const val = JSON.parse(raw);
+    return val ?? padrao;
   } catch {
     return padrao;
   }
+}
+
+function sanitizarListaMeds(val, padrao = []) {
+  if (!Array.isArray(val)) return [...padrao];
+  const vistos = new Set();
+  const res = [];
+  for (const item of val) {
+    if (typeof item !== "string") continue;
+    const nome = item.trim().slice(0, 40);
+    if (!nome) continue;
+    const chave = nome.toLowerCase();
+    if (!vistos.has(chave)) {
+      vistos.add(chave);
+      res.push(nome);
+    }
+  }
+  return res;
+}
+
+function sanitizarMarcados(val) {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return {};
+  const res = {};
+  for (const [k, v] of Object.entries(val)) {
+    const nome = k.trim();
+    if (!nome) continue;
+    if (v === true) {
+      res[nome] = true;
+    } else if (typeof v === "string" && !isNaN(new Date(v))) {
+      res[nome] = v;
+    }
+  }
+  return res;
+}
+
+const TIPOS_ALARME_VALIDOS = new Set(["alarme", "cheia", "notificacao"]);
+const REGEX_HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function sanitizarAlarmes(val) {
+  if (!Array.isArray(val)) return [];
+  const res = [];
+  for (const item of val) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const hora =
+      typeof item.hora === "string" && REGEX_HORA.test(item.hora)
+        ? item.hora
+        : "08:00";
+    const tipo = TIPOS_ALARME_VALIDOS.has(item.tipo) ? item.tipo : "alarme";
+    const medsAlarme = sanitizarListaMeds(item.meds, []);
+    const id =
+      typeof item.id === "string" && item.id.trim()
+        ? item.id.trim()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    res.push({
+      id,
+      hora,
+      tipo,
+      meds: medsAlarme,
+      ativo: item.ativo !== false,
+    });
+  }
+  return res.sort((a, b) => a.hora.localeCompare(b.hora));
+}
+
+function sanitizarConfigNotif(val) {
+  if (!val || typeof val !== "object" || Array.isArray(val)) {
+    return { inteligente: false };
+  }
+  return { inteligente: Boolean(val.inteligente) };
 }
 
 // ---------- tema (claro / escuro / sistema) ----------
@@ -129,12 +198,18 @@ async function carregar(chaveDia) {
   }
   diaAtual = hojeChave();
   diaSelecionado = chaveDia || diaAtual;
-  medsPerm = lerJSON(await store.get("meds-lista"), [...MEDS_PADRAO]);
-  arquivados = lerJSON(await store.get("meds-arquivados"), []);
-  alarmes = lerJSON(await store.get("alarmes"), []);
-  configNotif = lerJSON(await store.get("notif-config"), {
-    inteligente: false,
-  });
+  medsPerm = sanitizarListaMeds(
+    lerJSON(await store.get("meds-lista"), null),
+    MEDS_PADRAO,
+  );
+  arquivados = sanitizarListaMeds(
+    lerJSON(await store.get("meds-arquivados"), null),
+    [],
+  ).filter((m) => !medsPerm.some((p) => p.toLowerCase() === m.toLowerCase()));
+  alarmes = sanitizarAlarmes(lerJSON(await store.get("alarmes"), null));
+  configNotif = sanitizarConfigNotif(
+    lerJSON(await store.get("notif-config"), null),
+  );
   if (medsChipSelecionados.size === 0) {
     medsPerm.forEach((m) => medsChipSelecionados.add(m));
   }
@@ -143,13 +218,15 @@ async function carregar(chaveDia) {
       await store.get(`lista:${diaSelecionado.slice(4)}`),
       null,
     );
-    meds = Array.isArray(listaSalva) ? [...listaSalva] : [...medsPerm];
+    meds = Array.isArray(listaSalva)
+      ? sanitizarListaMeds(listaSalva, medsPerm)
+      : [...medsPerm];
   } else {
     meds = [...medsPerm];
     // guarda a lista do dia, para o histórico saber quantos remédios havia em cada dia
     await store.set(`lista:${diaAtual.slice(4)}`, JSON.stringify(meds));
   }
-  marcados = lerJSON(await store.get(diaSelecionado), {});
+  marcados = sanitizarMarcados(lerJSON(await store.get(diaSelecionado), null));
   atualizarData();
   render();
   renderArquivados();
@@ -654,14 +731,19 @@ async function renderHistorico() {
     d.setDate(hoje.getDate() - i);
     const ch = chaveDe(d);
     const dados =
-      ch === diaSelecionado ? marcados : lerJSON(await store.get(ch), {});
+      ch === diaSelecionado
+        ? marcados
+        : sanitizarMarcados(lerJSON(await store.get(ch), null));
     // lista de remédios que valia naquele dia (dias antigos sem registro usam a lista permanente)
-    const listaDia =
+    const listaDiaBruta =
       ch === diaSelecionado
         ? meds
         : i === 0
           ? medsPerm
           : lerJSON(await store.get(chaveLista(d)), null);
+    const listaDia = Array.isArray(listaDiaBruta)
+      ? sanitizarListaMeds(listaDiaBruta, [])
+      : null;
     let total, feitos;
     if (Array.isArray(listaDia)) {
       total = listaDia.length;
@@ -826,7 +908,24 @@ async function importarBackup(arquivo) {
   );
   if (!ok) return;
   for (const [k, v] of Object.entries(obj.dados)) {
-    if (CHAVE_DADO.test(k) && typeof v === "string") await store.set(k, v);
+    if (!CHAVE_DADO.test(k) || typeof v !== "string") continue;
+    const val = lerJSON(v, null);
+    if (val === null) continue;
+    let limpo = null;
+    if (k === "meds-lista") {
+      limpo = sanitizarListaMeds(val, MEDS_PADRAO);
+    } else if (k === "meds-arquivados" || k.startsWith("lista:")) {
+      limpo = sanitizarListaMeds(val, []);
+    } else if (k.startsWith("dia:")) {
+      limpo = sanitizarMarcados(val);
+    } else if (k === "alarmes") {
+      limpo = sanitizarAlarmes(val);
+    } else if (k === "notif-config") {
+      limpo = sanitizarConfigNotif(val);
+    }
+    if (limpo !== null) {
+      await store.set(k, JSON.stringify(limpo));
+    }
   }
   await carregar();
   await avisar(
@@ -1153,7 +1252,9 @@ async function calcularHorariosInteligentes() {
     d.setDate(hoje.getDate() - i);
     const ch = chaveDe(d);
     const reg =
-      ch === diaSelecionado ? marcados : lerJSON(await store.get(ch), {});
+      ch === diaSelecionado
+        ? marcados
+        : sanitizarMarcados(lerJSON(await store.get(ch), null));
     const peso = 0.85 ** i;
     for (const [med, val] of Object.entries(reg)) {
       if (typeof val !== "string") continue;
